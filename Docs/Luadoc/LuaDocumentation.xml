@@ -951,13 +951,18 @@ local n = r['PlayerNumber_P2']
 		a warning. Aliased by <Link class='GLOBAL' function='Warn' />.
 	</Function>
 </Namespace>
-<Namespace name='MersenneTwister'>
+<Namespace name='RandomGen'>
 	<Function name='Random' return='float' arguments='...'>
 		Returns a random number. Without arguments, the number is in the range <code>0..1</code>. With a single argument (<code>n</code>), the number is in the range of <code>1..n</code>. With two arguments (<code>lower</code>, <code>upper</code>), the number is in the range of <code>l..u</code>.
 	</Function>
 	<Function name='Seed' return='void' arguments='int seed'>
 		Sets the seed of the random number generator to <code>seed</code>.
 	</Function>
+</Namespace>
+<Namespace name='MersenneTwister'>
+	<Description>
+		Compatibility alias for <Link class='RandomGen'/>.
+	</Description>
 </Namespace>
 <Namespace name='RageFileUtil'>
 	<Function name='CreateRageFile' return='RageFile' arguments=''>

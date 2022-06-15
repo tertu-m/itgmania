@@ -2205,7 +2205,9 @@
 			<Function name='GetName'/>
 			<Function name='Reverse'/>
 		</Namespace>
-		<Namespace name='MersenneTwister'>
+		<Namespace name='MersenneTwister' >
+		</Namespace>
+		<Namespace name='RandomGen'>
 			<Function name='Random'/>
 			<Function name='Seed'/>
 		</Namespace>

@@ -243,25 +243,32 @@ inline uint32_t Swap24LE( uint32_t n ) { return Swap24( n ); }
 inline uint16_t Swap16LE( uint16_t n ) { return Swap16( n ); }
 #endif
 
-struct MersenneTwister
+struct RandomGen
 {
-	MersenneTwister( int iSeed = 0 ); // 0 = time()
-	int operator()(); // returns [0,2^31-1]
+	RandomGen( int iSeed = 0 ); // 0 = time()
+	int operator()() // returns [0,2^31-1]
+	{
+		return GenerateInt();
+	}
 	int operator()( int n ) // returns [0,n)
 	{
-		return (*this)() % n;
+		return GenerateBoundedSigned(n);
 	}
 
 	void Reset( int iSeed );
 
 private:
-	static int Temper( int iValue );
-	void GenerateValues();
+	uint32_t GenerateValue();
+	uint32_t GenerateBounded( uint32_t uBound );
+	int GenerateBoundedSigned( int iBound );
+	int GenerateInt()
+	{
+		return int( GenerateValue() & 0x7FFFFFFF );
+	}
 
-	int m_Values[624];
-	int m_iNext;
+	uint32_t m_uState[3];
+	uint32_t m_uCounter;
 };
-typedef MersenneTwister RandomGen;
 
 extern RandomGen g_RandomNumberGenerator;
 

@@ -29,83 +29,77 @@ void UnicodeUpperLower(wchar_t *, size_t, const unsigned char *);
 
 RandomGen g_RandomNumberGenerator;
 
-MersenneTwister::MersenneTwister( int iSeed ) : m_iNext(0)
+RandomGen::RandomGen( int iSeed )
 {
 	Reset( iSeed );
 }
 
-void MersenneTwister::Reset( int iSeed )
+void RandomGen::Reset( int iSeed )
 {
 	if( iSeed == 0 )
 		iSeed = time(nullptr);
 
-	m_Values[0] = iSeed;
-	m_iNext = 0;
-	for( int i = 1; i < 624; ++i )
-		m_Values[i] = ((69069 * m_Values[i-1]) + 1) & 0xFFFFFFFF;
+	m_uState[2] = uint32_t( iSeed );
+	m_uState[1] = 69069;
+	m_uState[0] = 0xBEEF5EED;
+	m_uCounter = 1;
 
-	GenerateValues();
+	for( int i = 0; i < 20; i++ )
+		GenerateValue();
 }
 
-void MersenneTwister::GenerateValues()
+uint32_t RandomGen::GenerateValue()
 {
-	static const unsigned mask[] = { 0, 0x9908B0DF };
+	uint32_t uResult = m_uState[0] + m_uState[1] + m_uCounter++;
 
-	for( int i = 0; i < 227; ++i )
+	m_uState[0] = m_uState[1] ^ (m_uState[1] >> 9);
+	m_uState[1] = m_uState[2] * 9;
+	m_uState[2] = uResult + ((m_uState[2] << 21) | (m_uState[2] >> 11));
+
+	return uResult;
+}
+
+uint32_t RandomGen::GenerateBounded(uint32_t uBound)
+{
+	if ( uBound == 0)
+		return 0;
+	
+	uint32_t uRawRandom = GenerateValue();
+	uint64_t ulScaledRandom = uint64_t(uRawRandom) * uint64_t(uBound);
+	uint32_t uFraction = uint32_t(ulScaledRandom);
+
+	if (uFraction < uBound)
 	{
-		int iVal = (m_Values[i] & 0x80000000) | (m_Values[i+1] & 0x7FFFFFFF);
-		int iNext = (i + 397);
-
-		m_Values[i] = m_Values[iNext];
-		m_Values[i] ^= (iVal >> 1);
-		m_Values[i] ^= mask[iVal&1];
+		uint32_t uScaledLimit = UINT32_MAX / uBound;
+		while (uFraction < uScaledLimit)
+		{
+			uRawRandom = GenerateValue();
+			ulScaledRandom = uint64_t(uRawRandom) * uint64_t(uBound);
+			uFraction = uint32_t(ulScaledRandom);
+		}
 	}
 
-	for( int i = 227; i < 623; ++i )
-	{
-		int iVal = (m_Values[i] & 0x80000000) | (m_Values[i+1] & 0x7FFFFFFF);
-		int iNext = (i + 397) - 624;
-
-		m_Values[i] = m_Values[iNext];
-		m_Values[i] ^= (iVal >> 1);
-		m_Values[i] ^= mask[iVal&1];
-	}
-
-	int iVal = (m_Values[623] & 0x80000000) + (m_Values[0] & 0x7FFFFFFF);
-	int iNext = (623 + 397) - 624;
-	m_Values[623] = m_Values[iNext] ^ (iVal>>1);
-	m_Values[623] ^= mask[iVal&1];
+	return ulScaledRandom >> 32;
 }
 
-int MersenneTwister::Temper( int iVal )
+int RandomGen::GenerateBoundedSigned( int iBound )
 {
-	iVal ^= (iVal >> 11);
-	iVal ^= (iVal << 7) & 0x9D2C5680;
-	iVal ^= (iVal << 15) & 0xEFC60000;
-	iVal ^= (iVal >> 18);
-	return iVal;
+	bool bBoundWasNegative = iBound < 0;
+	uint32_t uBound = uint32_t(bBoundWasNegative ? int64_t(-iBound) : iBound);
+
+	int iResult = int( GenerateBounded(uBound) );
+	return bBoundWasNegative ? -iResult : iResult;
 }
 
-int MersenneTwister::operator()()
-{
-	if( m_iNext == 624 )
-	{
-		m_iNext = 0;
-		GenerateValues();
-	}
-
-	return Temper( m_Values[m_iNext++] );
-}
-
-/* Extend MersenneTwister into Lua space. This is intended to replace
+/* Extend RandomGen into Lua space. This is intended to replace
  * math.randomseed and math.random, so we conform to their behavior. */
 
 namespace
 {
-	MersenneTwister g_LuaPRNG;
+	RandomGen g_LuaPRNG;
 
-	/* To map from [0..2^31-1] to [0..1), we divide by 2^31. */
-	const double DIVISOR = pow( double(2), double(31) );
+	/* To map from [0..2^32-1] to [0..1), we divide by 2^32. */
+	const double DIVISOR = pow( double(2), double(32) );
 
 	static int Seed( lua_State *L )
 	{
@@ -139,7 +133,7 @@ namespace
 				int lower = IArg(1);
 				int upper = IArg(2);
 				luaL_argcheck( L, lower < upper, 2, "interval is empty" );
-				lua_pushnumber( L, (int(g_LuaPRNG()) % (upper-lower+1)) + lower );
+				lua_pushnumber( L, g_LuaPRNG(upper-lower+1) + lower );
 				return 1;
 			}
 
@@ -151,7 +145,7 @@ namespace
 		}
 	}
 
-	const luaL_Reg MersenneTwisterTable[] =
+	const luaL_Reg RandomGenTable[] =
 	{
 		LIST_METHOD( Seed ),
 		LIST_METHOD( Random ),
@@ -159,7 +153,7 @@ namespace
 	};
 }
 
-LUA_REGISTER_NAMESPACE( MersenneTwister );
+LUA_REGISTER_NAMESPACE( RandomGen );
 
 void fapproach( float& val, float other_val, float to_move )
 {
