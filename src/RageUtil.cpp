@@ -114,7 +114,7 @@ namespace
 			/* [0..1) */
 			case 0:
 			{
-				double r = double(g_LuaPRNG()) / DIVISOR;
+				double r = double(g_LuaPRNG.GenerateValue()) / DIVISOR;
 				lua_pushnumber( L, r );
 				return 1;
 			}

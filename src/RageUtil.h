@@ -256,9 +256,9 @@ struct RandomGen
 	}
 
 	void Reset( int iSeed );
+	uint32_t GenerateValue();
 
 private:
-	uint32_t GenerateValue();
 	uint32_t GenerateBounded( uint32_t uBound );
 	int GenerateBoundedSigned( int iBound );
 	int GenerateInt()
